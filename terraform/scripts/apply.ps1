@@ -15,6 +15,13 @@ function Assert-Command($name) {
   }
 }
 
+function Invoke-Kubectl {
+  & kubectl @args
+  if ($LASTEXITCODE -ne 0) {
+    throw "kubectl failed: kubectl $($args -join ' ')"
+  }
+}
+
 Assert-Command minikube
 Assert-Command kubectl
 
@@ -37,12 +44,21 @@ if (-not $ip) {
   throw "Could not read Minikube IP"
 }
 
+# Docker Desktop on Windows does not publish Minikube NodePorts on the Minikube IP.
 $apiUrl = "http://${ip}:30080"
+$usePortForward = $false
+if ($env:OS -eq "Windows_NT") {
+  $usePortForward = $true
+  $apiUrl = "http://127.0.0.1:18080"
+}
+
 Write-Host "Minikube IP: $ip"
 Write-Host "Frontend API endpoint: $apiUrl"
 
 Write-Host "Applying Kubernetes manifests from $k8sDir ..."
-kubectl apply -f $k8sDir
+Invoke-Kubectl apply -f (Join-Path $k8sDir "namespace.yaml")
+Invoke-Kubectl wait --for=jsonpath="{.status.phase}"=Active "namespace/$ns" --timeout=60s
+Invoke-Kubectl apply -f $k8sDir
 
 $secretPatch = @"
 apiVersion: v1
@@ -55,18 +71,29 @@ stringData:
   REACT_APP_API_ENDPOINT: $apiUrl
 "@
 $secretPatch | kubectl apply -f -
+if ($LASTEXITCODE -ne 0) {
+  throw "kubectl failed while patching todo-frontend-env"
+}
 
-kubectl -n $ns set image deployment/todo-api todo-api="${owner}/go-to-do-api:${tag}" | Out-Null
-kubectl -n $ns set image deployment/todo-frontend todo-frontend="${owner}/go-to-do-frontend:${tag}" | Out-Null
-kubectl -n $ns rollout restart deployment/todo-frontend | Out-Null
+Invoke-Kubectl -n $ns set image deployment/todo-api "todo-api=${owner}/go-to-do-api:${tag}"
+Invoke-Kubectl -n $ns set image deployment/todo-frontend "todo-frontend=${owner}/go-to-do-frontend:${tag}"
+Invoke-Kubectl -n $ns rollout restart deployment/todo-frontend
 
 Write-Host "Waiting for workloads..."
-kubectl -n $ns rollout status deployment/mongodb --timeout=180s
-kubectl -n $ns rollout status deployment/todo-api --timeout=180s
-kubectl -n $ns rollout status deployment/todo-frontend --timeout=180s
+Invoke-Kubectl -n $ns rollout status deployment/mongodb --timeout=300s
+Invoke-Kubectl -n $ns rollout status deployment/todo-api --timeout=300s
+Invoke-Kubectl -n $ns rollout status deployment/todo-frontend --timeout=300s
 
 Write-Host ""
 Write-Host "Application is deployed."
-Write-Host "  UI:  http://${ip}:30081"
-Write-Host "  API: http://${ip}:30080/healthz"
+if ($usePortForward) {
+  Write-Host "Docker Desktop on Windows: keep these port-forwards running, then open the UI."
+  Write-Host "  kubectl --context=$profile -n $ns port-forward svc/todo-api 18080:8080"
+  Write-Host "  kubectl --context=$profile -n $ns port-forward svc/todo-frontend 18081:8080"
+  Write-Host "  UI:  http://127.0.0.1:18081"
+  Write-Host "  API: http://127.0.0.1:18080/healthz"
+} else {
+  Write-Host "  UI:  http://${ip}:30081"
+  Write-Host "  API: http://${ip}:30080/healthz"
+}
 Write-Host "  kubectl --context=$profile get pods -n $ns"

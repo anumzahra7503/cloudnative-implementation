@@ -41,7 +41,7 @@ spec:
         fsGroup: 1001
       containers:
         - name: mongodb
-          image: bitnami/mongodb:4.4.1
+          image: bitnamilegacy/mongodb:4.4.15
           imagePullPolicy: IfNotPresent
           ports:
             - name: mongo

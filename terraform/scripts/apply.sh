@@ -40,6 +40,8 @@ echo "Minikube IP: ${IP}"
 echo "Frontend API endpoint: ${API_URL}"
 
 echo "Applying Kubernetes manifests from ${K8S_DIR} ..."
+kubectl apply -f "${K8S_DIR}/namespace.yaml"
+kubectl wait --for=jsonpath='{.status.phase}'=Active "namespace/${NS}" --timeout=60s
 kubectl apply -f "${K8S_DIR}"
 
 kubectl apply -f - <<EOF
@@ -58,9 +60,9 @@ kubectl -n "${NS}" set image deployment/todo-frontend "todo-frontend=${OWNER}/go
 kubectl -n "${NS}" rollout restart deployment/todo-frontend >/dev/null
 
 echo "Waiting for workloads..."
-kubectl -n "${NS}" rollout status deployment/mongodb --timeout=180s
-kubectl -n "${NS}" rollout status deployment/todo-api --timeout=180s
-kubectl -n "${NS}" rollout status deployment/todo-frontend --timeout=180s
+kubectl -n "${NS}" rollout status deployment/mongodb --timeout=300s
+kubectl -n "${NS}" rollout status deployment/todo-api --timeout=300s
+kubectl -n "${NS}" rollout status deployment/todo-frontend --timeout=300s
 
 echo
 echo "Application is deployed."

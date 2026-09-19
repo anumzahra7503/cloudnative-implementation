@@ -130,7 +130,7 @@ output "images" {
   value = {
     api      = "${var.dockerhub_username}/go-to-do-api:${var.image_tag}"
     frontend = "${var.dockerhub_username}/go-to-do-frontend:${var.image_tag}"
-    db       = "bitnami/mongodb:4.4.1"
+    db       = "bitnamilegacy/mongodb:4.4.15"
   }
 }
 

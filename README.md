@@ -10,7 +10,7 @@ Upstream application: [abdennour/cloudnative-implementation](https://github.com/
 | --- | --- | --- |
 | **Frontend** | `client/` (React 16, nginx) | Deployment `todo-frontend`, NodePort **30081** |
 | **API** | `server/` (Go + Gorilla Mux) | Deployment `todo-api`, NodePort **30080** |
-| **Database** | Bitnami MongoDB `4.4.1` | Deployment `mongodb`, ClusterIP **27017** only |
+| **Database** | Bitnami MongoDB `4.4.15` (`bitnamilegacy/mongodb`) | Deployment `mongodb`, ClusterIP **27017** only |
 | **CI** | `.github/workflows/` | Builds and pushes images to Docker Hub |
 | **Cluster + deploy** | `terraform/` | Starts Minikube (Calico) and applies `k8s/` |
 
@@ -111,11 +111,18 @@ kubectl --context=todo-minikube get pods,svc -n todo
 - API health: `http://<minikube-ip>:30080/healthz`
 - List tasks: `http://<minikube-ip>:30080/api/task`
 
-On Docker Desktop / some Windows setups, if the NodePort is not reachable at the Minikube IP, run:
+On Docker Desktop / Windows, NodePorts on the Minikube IP are often not reachable from the host. Use port-forward (or `minikube service`):
 
 ```bash
-minikube -p todo-minikube service todo-frontend -n todo
+kubectl --context=todo-minikube -n todo port-forward svc/todo-frontend 18081:8080
+kubectl --context=todo-minikube -n todo port-forward svc/todo-api 18080:8080
 ```
+
+Then open:
+
+- UI: `http://127.0.0.1:18081`
+- API health: `http://127.0.0.1:18080/healthz`
+- List tasks: `http://127.0.0.1:18080/api/task`
 
 ## 5. Apply manifests without Terraform (optional)
 
@@ -166,7 +173,7 @@ The frontend image is distroless/nginx, so `wget` may be missing. Use a debug po
 | `frontend.yaml` | Frontend Deployment (generates `env.js`) + NodePort 30081 |
 | `network-policy.yaml` | Isolation described above |
 
-Demo credentials match `.env.example` (`appuser` / `apppass`). Change the Secret before any non-demo use.
+Demo credentials match `.env.example` (`root` / `adminpass` for Mongo, app user values kept in the Secret for compatibility). Change the Secret before any non-demo use.
 
 ## Original Compose / Helm path
 
