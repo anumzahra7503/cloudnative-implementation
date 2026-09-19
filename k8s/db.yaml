@@ -1,0 +1,92 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: todo
+  labels:
+    app: mongodb
+    tier: db
+    app.kubernetes.io/part-of: todo-app
+spec:
+  type: ClusterIP
+  selector:
+    app: mongodb
+  ports:
+    - name: mongo
+      port: 27017
+      targetPort: 27017
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: todo
+  labels:
+    app: mongodb
+    tier: db
+    app.kubernetes.io/part-of: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        tier: db
+        app.kubernetes.io/part-of: todo-app
+    spec:
+      securityContext:
+        fsGroup: 1001
+      containers:
+        - name: mongodb
+          image: bitnami/mongodb:4.4.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: mongo
+              containerPort: 27017
+          env:
+            - name: MONGODB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-db
+                  key: MONGODB_ROOT_PASSWORD
+            - name: MONGODB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: todo-db
+                  key: MONGODB_USERNAME
+            - name: MONGODB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: todo-db
+                  key: MONGODB_PASSWORD
+            - name: MONGODB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: todo-db
+                  key: MONGODB_DATABASE
+          readinessProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mongo
+            initialDelaySeconds: 40
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mongodb
+      volumes:
+        - name: data
+          emptyDir: {}

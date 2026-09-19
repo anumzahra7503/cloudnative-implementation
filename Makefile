@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-include .env
+-include .env
 # auto populate env vars from .env file
 VARS:=$(shell sed -ne 's/ *\#.*$$//; /./ s/=.*$$// p' .env )
 $(foreach v,$(VARS),$(eval $(shell echo export $(v)="$($(v))")))
@@ -51,3 +51,10 @@ k8s.preview.ecosystem:
 
 push:
 	docker-compose push
+
+# Assignment path: single-node Minikube + plain manifests via Terraform
+minikube.up:
+	cd terraform && terraform init && terraform apply -auto-approve
+
+minikube.status:
+	kubectl --context=todo-minikube get pods,svc,networkpolicy -n todo

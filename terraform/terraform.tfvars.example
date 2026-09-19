@@ -1,0 +1,4 @@
+dockerhub_username = "anumzahra"
+image_tag          = "v1"
+minikube_profile   = "todo-minikube"
+minikube_driver    = "docker"

@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: todo-frontend
+  namespace: todo
+  labels:
+    app: todo-frontend
+    tier: frontend
+    app.kubernetes.io/part-of: todo-app
+spec:
+  type: NodePort
+  selector:
+    app: todo-frontend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080
+      nodePort: 30081
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: todo-frontend
+  namespace: todo
+  labels:
+    app: todo-frontend
+    tier: frontend
+    app.kubernetes.io/part-of: todo-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: todo-frontend
+  template:
+    metadata:
+      labels:
+        app: todo-frontend
+        tier: frontend
+        app.kubernetes.io/part-of: todo-app
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+      initContainers:
+        - name: env-generator
+          image: abdennour/dotenv-to-js-object:4ea
+          args:
+            - --dest=/data
+            - --env-vars-filter=REACT_APP_
+            - --run-as=job
+          envFrom:
+            - secretRef:
+                name: todo-frontend-env
+          volumeMounts:
+            - name: data-env
+              mountPath: /data
+      containers:
+        - name: todo-frontend
+          image: anumzahra/go-to-do-frontend:v1
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: data-env
+              mountPath: /opt/app/config
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 300m
+              memory: 128Mi
+      volumes:
+        - name: data-env
+          emptyDir: {}

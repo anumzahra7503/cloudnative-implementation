@@ -1,0 +1,105 @@
+# Requires a NetworkPolicy-capable CNI (Minikube is started with --cni=calico).
+# Bonus: frontend pods cannot reach MongoDB; only the API can.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: todo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: todo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-from-api-only
+  namespace: todo
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: todo-api
+      ports:
+        - protocol: TCP
+          port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: api-allow
+  namespace: todo
+spec:
+  podSelector:
+    matchLabels:
+      app: todo-api
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # In-cluster callers (frontend) and NodePort/browser traffic via the node.
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: mongodb
+      ports:
+        - protocol: TCP
+          port: 27017
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: frontend-allow
+  namespace: todo
+spec:
+  podSelector:
+    matchLabels:
+      app: todo-frontend
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    # Browser talks to the API NodePort; in-cluster calls (if any) go to todo-api.
+    # MongoDB is intentionally omitted so frontend -> db is blocked.
+    - to:
+        - podSelector:
+            matchLabels:
+              app: todo-api
+      ports:
+        - protocol: TCP
+          port: 8080
