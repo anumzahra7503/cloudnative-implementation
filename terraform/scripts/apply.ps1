@@ -7,6 +7,8 @@ $memory = if ($env:MINIKUBE_MEMORY) { $env:MINIKUBE_MEMORY } else { "4096" }
 $owner = if ($env:DOCKERHUB_USERNAME) { $env:DOCKERHUB_USERNAME } else { "anumzahra" }
 $tag = if ($env:IMAGE_TAG) { $env:IMAGE_TAG } else { "v1" }
 $ns = if ($env:NAMESPACE) { $env:NAMESPACE } else { "todo" }
+$apiPort = if ($env:API_NODE_PORT) { [int]$env:API_NODE_PORT } else { 30080 }
+$frontendPort = if ($env:FRONTEND_NODE_PORT) { [int]$env:FRONTEND_NODE_PORT } else { 30081 }
 $k8sDir = if ($env:K8S_DIR) { $env:K8S_DIR } else { (Resolve-Path (Join-Path $PSScriptRoot "..\..\k8s")).Path }
 
 function Assert-Command($name) {
@@ -20,6 +22,13 @@ function Invoke-Kubectl {
   if ($LASTEXITCODE -ne 0) {
     throw "kubectl failed: kubectl $($args -join ' ')"
   }
+}
+
+function Set-ServiceNodePort([string]$service, [int]$port) {
+  $tmp = Join-Path ([System.IO.Path]::GetTempPath()) "todo-$service-nodeport.json"
+  $json = "[{`"op`":`"replace`",`"path`":`"/spec/ports/0/nodePort`",`"value`":$port}]"
+  [System.IO.File]::WriteAllText($tmp, $json)
+  Invoke-Kubectl -n $ns patch svc $service --type=json --patch-file $tmp
 }
 
 Assert-Command minikube
@@ -45,7 +54,7 @@ if (-not $ip) {
 }
 
 # Docker Desktop on Windows does not publish Minikube NodePorts on the Minikube IP.
-$apiUrl = "http://${ip}:30080"
+$apiUrl = "http://${ip}:${apiPort}"
 $usePortForward = $false
 if ($env:OS -eq "Windows_NT") {
   $usePortForward = $true
@@ -53,12 +62,16 @@ if ($env:OS -eq "Windows_NT") {
 }
 
 Write-Host "Minikube IP: $ip"
+Write-Host "NodePorts: api=$apiPort frontend=$frontendPort"
 Write-Host "Frontend API endpoint: $apiUrl"
 
 Write-Host "Applying Kubernetes manifests from $k8sDir ..."
 Invoke-Kubectl apply -f (Join-Path $k8sDir "namespace.yaml")
 Invoke-Kubectl wait --for=jsonpath="{.status.phase}"=Active "namespace/$ns" --timeout=60s
 Invoke-Kubectl apply -f $k8sDir
+
+Set-ServiceNodePort -service todo-api -port $apiPort
+Set-ServiceNodePort -service todo-frontend -port $frontendPort
 
 $secretPatch = @"
 apiVersion: v1
@@ -93,7 +106,7 @@ if ($usePortForward) {
   Write-Host "  UI:  http://127.0.0.1:18081"
   Write-Host "  API: http://127.0.0.1:18080/healthz"
 } else {
-  Write-Host "  UI:  http://${ip}:30081"
-  Write-Host "  API: http://${ip}:30080/healthz"
+  Write-Host "  UI:  http://${ip}:${frontendPort}"
+  Write-Host "  API: http://${ip}:${apiPort}/healthz"
 }
 Write-Host "  kubectl --context=$profile get pods -n $ns"

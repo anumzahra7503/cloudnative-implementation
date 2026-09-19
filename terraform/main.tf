@@ -40,13 +40,15 @@ variable "namespace" {
 }
 
 variable "api_node_port" {
-  type    = number
-  default = 30080
+  description = "NodePort for the todo-api Service. The apply scripts patch this onto the cluster after kubectl apply."
+  type        = number
+  default     = 30080
 }
 
 variable "frontend_node_port" {
-  type    = number
-  default = 30081
+  description = "NodePort for the todo-frontend Service. The apply scripts patch this onto the cluster after kubectl apply."
+  type        = number
+  default     = 30081
 }
 
 variable "cpus" {

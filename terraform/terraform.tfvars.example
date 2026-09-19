@@ -2,3 +2,5 @@ dockerhub_username = "anumzahra"
 image_tag          = "v1"
 minikube_profile   = "todo-minikube"
 minikube_driver    = "docker"
+api_node_port      = 30080
+frontend_node_port = 30081

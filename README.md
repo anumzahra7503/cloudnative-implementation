@@ -98,6 +98,8 @@ Useful variables (`-var` or a `terraform.tfvars` file you do not commit):
 | `image_tag` | `v1` | Image tag |
 | `minikube_profile` | `todo-minikube` | Cluster profile |
 | `minikube_driver` | `docker` | Minikube driver |
+| `api_node_port` | `30080` | API Service NodePort (patched onto `todo-api`) |
+| `frontend_node_port` | `30081` | Frontend Service NodePort (patched onto `todo-frontend`) |
 | `delete_cluster_on_destroy` | `false` | If `true`, `terraform destroy` deletes Minikube |
 
 ## 4. Open the app
@@ -187,8 +189,3 @@ docker-compose up -d
 
 Helmfile still lives in `helmfile.yaml` and `.helm-charts/`. The assignment deliverable is the **Minikube + manifests + Terraform** path above, not Helm.
 
-## Authors
-
-- Shubham Kumar Chadokar — original application
-- Abdennour Toumi — Docker / Helm packaging
-- This fork — GitHub Actions, Kubernetes manifests, NetworkPolicy, Terraform for Minikube

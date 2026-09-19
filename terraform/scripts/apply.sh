@@ -8,6 +8,8 @@ MEMORY="${MINIKUBE_MEMORY:-4096}"
 OWNER="${DOCKERHUB_USERNAME:-anumzahra}"
 TAG="${IMAGE_TAG:-v1}"
 NS="${NAMESPACE:-todo}"
+API_NODE_PORT="${API_NODE_PORT:-30080}"
+FRONTEND_NODE_PORT="${FRONTEND_NODE_PORT:-30081}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 K8S_DIR="${K8S_DIR:-$(cd "${SCRIPT_DIR}/../../k8s" && pwd)}"
 
@@ -35,14 +37,20 @@ if [[ -z "${IP}" ]]; then
   exit 1
 fi
 
-API_URL="http://${IP}:30080"
+API_URL="http://${IP}:${API_NODE_PORT}"
 echo "Minikube IP: ${IP}"
+echo "NodePorts: api=${API_NODE_PORT} frontend=${FRONTEND_NODE_PORT}"
 echo "Frontend API endpoint: ${API_URL}"
 
 echo "Applying Kubernetes manifests from ${K8S_DIR} ..."
 kubectl apply -f "${K8S_DIR}/namespace.yaml"
 kubectl wait --for=jsonpath='{.status.phase}'=Active "namespace/${NS}" --timeout=60s
 kubectl apply -f "${K8S_DIR}"
+
+kubectl -n "${NS}" patch svc todo-api --type=json \
+  -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/0/nodePort\",\"value\":${API_NODE_PORT}}]"
+kubectl -n "${NS}" patch svc todo-frontend --type=json \
+  -p "[{\"op\":\"replace\",\"path\":\"/spec/ports/0/nodePort\",\"value\":${FRONTEND_NODE_PORT}}]"
 
 kubectl apply -f - <<EOF
 apiVersion: v1
@@ -66,6 +74,6 @@ kubectl -n "${NS}" rollout status deployment/todo-frontend --timeout=300s
 
 echo
 echo "Application is deployed."
-echo "  UI:  http://${IP}:30081"
-echo "  API: http://${IP}:30080/healthz"
+echo "  UI:  http://${IP}:${FRONTEND_NODE_PORT}"
+echo "  API: http://${IP}:${API_NODE_PORT}/healthz"
 echo "  kubectl --context=${PROFILE} get pods -n ${NS}"
