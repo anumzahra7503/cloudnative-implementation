@@ -31,9 +31,9 @@ jobs:
           context: ./server
           target: release
           push: true
-            tags: |
-              anumzahratodoacr.azurecr.io/go-to-do-api:v1
-              anumzahratodoacr.azurecr.io/go-to-do-api:latest
-              anumzahratodoacr.azurecr.io/go-to-do-api:${{ github.sha }}
+          tags: |
+            anumzahratodoacr.azurecr.io/go-to-do-api:v1
+            anumzahratodoacr.azurecr.io/go-to-do-api:latest
+            anumzahratodoacr.azurecr.io/go-to-do-api:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
