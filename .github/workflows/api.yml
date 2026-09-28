@@ -31,7 +31,6 @@ jobs:
           context: ./server
           target: release
           push: true
-          tags: |
             tags: |
               anumzahratodoacr.azurecr.io/go-to-do-api:v1
               anumzahratodoacr.azurecr.io/go-to-do-api:latest
